@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>드론 점검 기록 조회</title>
+<style>
+  :root{
+    --blue:#1428A0; --ok:#1e9e5a; --bad:#d23b3b;
+    --bg:#f2f4f8; --card:#ffffff; --line:#e2e6ee; --txt:#1c2333; --muted:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    margin:0;background:var(--bg);color:var(--txt);font-size:14px;
+  }
+  header{background:var(--blue);color:#fff;padding:14px 18px;}
+  header h1{margin:0;font-size:17px;}
+  header .sub{font-size:12px;opacity:.85;margin-top:3px;}
+  .wrap{max-width:960px;margin:0 auto;padding:16px;}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th{background:#f7f8fb;color:var(--muted);font-weight:600;font-size:12px;}
+  tr:last-child td{border-bottom:none;}
+  tr.clickable:hover{background:#f5f7ff;cursor:pointer;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700;}
+  .badge.ok{background:#e6f7ee;color:var(--ok);}
+  .badge.bad{background:#fdeaea;color:var(--bad);}
+  .empty,.loading{padding:30px;text-align:center;color:var(--muted);}
+  .gps-link{color:var(--blue);text-decoration:none;font-size:12.5px;}
+
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:50;}
+  .modal-bg.show{display:flex;align-items:flex-end;justify-content:center;}
+  .modal{background:#fff;border-radius:14px 14px 0 0;max-width:680px;width:100%;
+    max-height:85vh;overflow-y:auto;padding:18px;}
+  .modal h2{margin:0 0 12px;font-size:16px;color:var(--blue);}
+  .modal .row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px dashed var(--line);}
+  .modal-close{display:block;width:100%;margin-top:14px;padding:10px;border:none;border-radius:8px;
+    background:var(--blue);color:#fff;font-size:14px;font-weight:700;}
+  .item-line{padding:5px 0;font-size:13px;border-bottom:1px solid #f0f1f5;}
+  .item-line b.ok{color:var(--ok);} .item-line b.bad{color:var(--bad);} .item-line b.none{color:var(--muted);}
+  @media (max-width:640px){
+    table,thead,tbody,th,td,tr{display:block;}
+    thead{display:none;}
+    tr{background:var(--card);border-radius:10px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+    td{border:none;white-space:normal;display:flex;justify-content:space-between;gap:8px;}
+    td::before{content:attr(data-label);color:var(--muted);font-size:11px;flex:0 0 auto;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>📋 드론 점검 기록 조회</h1>
+  <div class="sub">최근 200건 · 조종자 식별정보 없음(드론·시각·GPS만 저장)</div>
+</header>
+<div class="wrap">
+  <table id="tbl" style="display:none;">
+    <thead>
+      <tr><th>ID</th><th>저장 시각(서버)</th><th>드론</th><th>결과</th><th>정상/이상</th><th>GPS</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="loading" class="loading">불러오는 중...</div>
+  <div id="empty" class="empty" style="display:none;">저장된 점검 기록이 없습니다.</div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+async function load(){
+  const res = await fetch('/api/reports');
+  const data = await res.json();
+  const tbody = document.getElementById('tbody');
+  document.getElementById('loading').style.display='none';
+  if(!data.ok || data.reports.length===0){
+    document.getElementById('empty').style.display='block';
+    return;
+  }
+  document.getElementById('tbl').style.display='table';
+  data.reports.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.className='clickable';
+    tr.onclick=()=>openDetail(r.id);
+    const gps = (r.lat!=null && r.lng!=null)
+      ? `<a class="gps-link" href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</a>`
+      : '-';
+    tr.innerHTML = `
+      <td data-label="ID">#${r.id}</td>
+      <td data-label="저장 시각">${r.created_at.replace('T',' ').replace('Z','')}</td>
+      <td data-label="드론">${r.drone}</td>
+      <td data-label="결과"><span class="badge ${r.bad_count===0?'ok':'bad'}">${r.verdict}</span></td>
+      <td data-label="정상/이상">${r.ok_count} / ${r.bad_count}</td>
+      <td data-label="GPS">${gps}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function openDetail(id){
+  const res = await fetch('/api/reports/'+id);
+  const data = await res.json();
+  if(!data.ok) return;
+  const r = data.report;
+  const modal = document.getElementById('modal');
+  let itemsHtml = r.items.map((it,i)=>{
+    const cls = it.state==='ok'?'ok':it.state==='bad'?'bad':'none';
+    const label = it.state==='ok'?'정상':it.state==='bad'?'이상':'미점검';
+    return `<div class="item-line">${i+1}. ${it.q} — <b class="${cls}">${label}</b></div>`;
+  }).join('');
+  modal.innerHTML = `
+    <h2>#${r.id} 점검 기록 상세</h2>
+    <div class="row"><span>저장 시각(서버)</span><span>${r.created_at}</span></div>
+    <div class="row"><span>점검 시각(클라이언트)</span><span>${r.client_ts||'-'}</span></div>
+    <div class="row"><span>드론</span><span>${r.drone}</span></div>
+    <div class="row"><span>종합 판정</span><span>${r.verdict} (정상 ${r.ok_count} / 이상 ${r.bad_count})</span></div>
+    <div class="row"><span>GPS</span><span>${r.lat!=null?r.lat.toFixed(6)+', '+r.lng.toFixed(6)+' (±'+Math.round(r.gps_accuracy||0)+'m)':'-'}</span></div>
+    <div style="margin-top:14px;">${itemsHtml}</div>
+    <button class="modal-close" onclick="closeDetail()">닫기</button>`;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeDetail(){ document.getElementById('modalBg').classList.remove('show'); }
+document.getElementById('modalBg').addEventListener('click', e=>{
+  if(e.target.id==='modalBg') closeDetail();
+});
+
+load();
+</script>
+</body>
+</html>

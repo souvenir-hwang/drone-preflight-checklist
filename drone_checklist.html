@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>드론 비행 전 체크리스트</title>
+<style>
+  :root{
+    --blue:#1428A0;        /* Samsung blue */
+    --blue-dark:#0c1a6b;
+    --ok:#1e9e5a;
+    --bad:#d23b3b;
+    --bg:#f2f4f8;
+    --card:#ffffff;
+    --line:#e2e6ee;
+    --txt:#1c2333;
+    --muted:#6b7280;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    background:var(--bg);color:var(--txt);
+    font-size:15px;line-height:1.45;
+    padding-bottom:90px;
+  }
+  header{
+    position:sticky;top:0;z-index:30;
+    background:var(--blue);color:#fff;
+    padding:14px 16px;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+  header h1{margin:0;font-size:18px;font-weight:700;}
+  header h1 .ver{font-size:11px;font-weight:400;opacity:.75;vertical-align:middle;margin-left:2px;}
+  header .sub{font-size:12px;opacity:.85;margin-top:3px;}
+  .progress-wrap{margin-top:10px;}
+  .progress-bar{height:8px;background:rgba(255,255,255,.25);border-radius:6px;overflow:hidden;}
+  .progress-fill{height:100%;width:0;background:#7fffb0;transition:width .25s;}
+  .progress-text{font-size:12px;margin-top:5px;opacity:.95;}
+
+  .container{padding:14px 12px;max-width:680px;margin:0 auto;}
+
+  .meta-card,.item{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:12px;margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  .meta-card{padding:14px;}
+  .meta-card h2{margin:0 0 10px;font-size:14px;color:var(--blue);}
+  .field{margin-bottom:10px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .field input,.field select{
+    width:100%;padding:10px;border:1px solid var(--line);
+    border-radius:8px;font-size:15px;background:#fafbfd;
+  }
+  .field select{appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.5'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+
+  .item{padding:13px 14px;}
+  .item .q{display:flex;gap:8px;align-items:flex-start;}
+  .item .num{
+    flex:0 0 auto;width:24px;height:24px;border-radius:50%;
+    background:var(--blue);color:#fff;font-size:12px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;margin-top:1px;
+  }
+  .item .qtext{font-size:14.5px;font-weight:600;flex:1;}
+  .item .desc{font-size:12.5px;color:var(--muted);margin:6px 0 10px 32px;white-space:pre-line;}
+  .tel-link{display:inline-block;color:var(--blue);font-weight:700;text-decoration:none;
+    border:1px solid var(--blue);border-radius:6px;padding:1px 8px;margin-left:2px;}
+  .tel-link::before{content:"📞 ";}
+  .gps-map{margin-top:10px;}
+  .map-frame{width:100%;height:220px;border:1px solid var(--line);border-radius:10px;display:block;}
+  .map-link{display:inline-block;margin-top:8px;color:var(--blue);font-weight:700;text-decoration:none;
+    border:1px solid var(--blue);border-radius:6px;padding:2px 8px;}
+  .btns{display:flex;gap:8px;margin-left:32px;}
+  .btns button{
+    flex:1;padding:9px 0;border:1.5px solid var(--line);
+    background:#fff;border-radius:8px;font-size:14px;font-weight:600;
+    color:var(--muted);cursor:pointer;transition:.12s;
+  }
+  .btns button.sel-ok{background:var(--ok);border-color:var(--ok);color:#fff;}
+  .btns button.sel-bad{background:var(--bad);border-color:var(--bad);color:#fff;}
+  .item.done-ok{border-color:var(--ok);}
+  .item.done-bad{border-color:var(--bad);}
+
+  /* GPS / consent card */
+  .gps-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .gps-card h2{margin:0 0 8px;font-size:14px;color:var(--blue);}
+  .consent{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--txt);margin-bottom:10px;}
+  .consent input{width:20px;height:20px;margin-top:1px;flex:0 0 auto;}
+  .gps-status{font-size:12.5px;color:var(--muted);padding:8px 10px;background:#fafbfd;border-radius:8px;border:1px solid var(--line);}
+  .gps-status.ok{color:var(--ok);border-color:var(--ok);}
+  .gps-status.err{color:var(--bad);border-color:var(--bad);}
+  .btn-secondary{
+    width:100%;padding:10px;margin-top:9px;border:1.5px solid var(--blue);
+    background:#fff;color:var(--blue);border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
+  }
+
+  /* footer submit */
+  .footer{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:#fff;border-top:1px solid var(--line);
+    padding:10px 12px;box-shadow:0 -2px 8px rgba(0,0,0,.06);
+  }
+  .footer .summary{font-size:12px;color:var(--muted);margin-bottom:7px;text-align:center;}
+  .btn-submit{
+    width:100%;padding:14px;border:none;border-radius:10px;
+    background:var(--blue);color:#fff;font-size:16px;font-weight:700;cursor:pointer;
+  }
+  .btn-submit:disabled{background:#aab1c4;cursor:not-allowed;}
+
+  .note{font-size:11.5px;color:var(--muted);text-align:center;margin-top:14px;padding:0 8px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚁 드론 비행 전 체크리스트 <span class="ver">v0.0.1</span></h1>
+  <div class="sub">삼성중공업 · 비행 전 안전 점검</div>
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+    <div class="progress-text" id="progText">0 / 20 항목 점검</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- 드론 선택 -->
+  <div class="meta-card">
+    <h2>🚁 드론 선택</h2>
+    <div class="field">
+      <label>어떤 드론인지 선택 바랍니다.</label>
+      <select id="m_drone">
+        <option value="">-- 드론을 선택하세요 --</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 체크리스트 -->
+  <div id="list"></div>
+
+  <!-- GPS / 동의 -->
+  <div class="gps-card">
+    <h2>📍 GPS 위치 정보</h2>
+    <label class="consent">
+      <input type="checkbox" id="gpsConsent">
+      <span>보고서 메일에 현재 <b>GPS 위치 정보(위도/경도)</b>를 포함하여 발송하는 것에 동의합니다.</span>
+    </label>
+    <div class="gps-status" id="gpsStatus">동의 후 [현재 위치 가져오기]를 눌러주세요.</div>
+    <button class="btn-secondary" id="gpsBtn" disabled>📡 현재 위치 가져오기</button>
+    <div class="gps-map" id="gpsMap" style="display:none;"></div>
+  </div>
+
+  <!-- 개인정보 수집·이용 동의 -->
+  <div class="gps-card">
+    <h2>🔒 개인정보 수집·이용 동의 <span style="color:var(--bad);font-size:12px;">(필수)</span></h2>
+    <div style="font-size:12.5px;color:var(--muted);background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;line-height:1.5;">
+      • 수집 항목 : GPS 위치 정보<br>
+      • 수집 목적 : 드론 비행 전 안전 점검 결과 저장 및 관리<br>
+      • 보유 기간 : 점검 이력 관리 목적 달성 시까지<br>
+      • 위 정보는 점검 결과 서버 저장을 위해 사용됩니다.
+    </div>
+    <label class="consent">
+      <input type="checkbox" id="privacyConsent">
+      <span>위 개인정보 수집·이용에 동의합니다. (미동의 시 저장 불가)</span>
+    </label>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="summary" id="footerSummary">미점검 항목 20개</div>
+  <button class="btn-submit" id="submitBtn" disabled>💾 점검 결과 저장</button>
+</div>
+
+<script>
+const items = [
+  {q:"삼성중공업 웨더아이 기준 아래 기상 조건을 만족하는가?", d:"평균 풍속 10m/s 이하, Gust 未발생"},
+  {q:"가시거리가 확보 되었는가?", d:"비행 영역에 안개가 끼지 않은 맑은 날씨인가"},
+  {q:"일출/일몰 시간 확인", d:"비행 시간이 일출 후 ~ 일몰 전 사이인가"},
+  {q:"수평 반경 확인", d:"드론 이륙지점 반경 2미터 이내에 간섭물(적치물, 시설물) 및 작업자가 없는가?"},
+  {q:"수직 공간 확인", d:"GPS 수신 및 상승을 위해 상부가 개방되어 있는가?"},
+  {q:"경로 내 간섭물 식별", d:"드론의 예상 이동 경로에 크레인, 파이프, 전선, 와이어 같은 간섭물이 존재하는가?"},
+  {q:"비행 높이 점검", d:"장애물을 회피할 수 있는 안전한 고도에서 비행중인가?"},
+  {q:"조종수의 건강 상태에 문제가 없는가?", d:""},
+  {q:"조종수는 조종하려는 드론에 맞는 도로교통공단 자격증과 사내드론 비행자격을 가지고 있는가?", d:""},
+  {q:"감시자와 통제자가 배치되어 있는가?", d:"• 권장 : 감시자, 통제자 2명\n• 최소 : 감시자와 통제자 역할 수행할 1명"},
+  {q:"조종수, 감시자, 통제자 간 의사소통수단이 준비되어 있는가?", d:""},
+  {q:"방재센터에 이륙 전 연락을 하였는가?", d:'연락처 : <a class="tel-link" href="tel:+82556305816">055-630-5816</a>\n전달사항 : 소속부서, 이륙장소, 비행구역, 비행목적'},
+  {q:"드론의 외형에 문제는 없는가?", d:"프로펠러 균열 유무, 모터 회전 이상 유무, 결합부 문제 여부"},
+  {q:"조종기와 드론 간 연결 상태가 양호한가?", d:""},
+  {q:"GPS 위성은 충분히 연결되어 있는가?", d:"최소 15~20개 이상"},
+  {q:"카메라 및 짐벌은 정상적으로 조종이 되는가?", d:""},
+  {q:"조종기 버튼 및 레버가 움직이는데 문제가 없는가?", d:""},
+  {q:"드론 프로펠러는 이상이 없는가?", d:""},
+  {q:"드론의 정면 방향을 확인하였는가?", d:""},
+  {q:"이륙 전 충돌방지센서는 활성화 되어 있는가?", d:""}
+];
+
+// 드론 리스트 (드론리스트.xlsx 참조) : DR000001 ~ DR000020
+const drones = Array.from({length:20}, (_,i)=>'DR'+String(i+1).padStart(6,'0'));
+const droneSel = document.getElementById('m_drone');
+drones.forEach(d=>{
+  const o=document.createElement('option'); o.value=d; o.textContent=d; droneSel.appendChild(o);
+});
+
+const state = new Array(items.length).fill(null); // null | 'ok' | 'bad'
+let gps = null;       // 메일 보고서용 (동의 + 버튼으로 수집)
+let autoLoc = null;   // 일출/일몰 판정 전용 (화면 열 때 자동 수집)
+let sunInfo = null; // {sunrise, sunset, isDaylight}
+const SUN_IDX = 2; // 3번 일출/일몰 항목
+
+// 일출/일몰 시각 계산 (NOAA 근사 알고리즘)
+// 반환: {sunrise, sunset} = 현지 시간의 '자정 기준 분(minute-of-day)', 계산 불가 시 null
+function calcSunTimes(date, lat, lng){
+  const rad=Math.PI/180, deg=180/Math.PI, zenith=90.833;
+  const start=new Date(date.getFullYear(),0,0);
+  const N=Math.floor((date-start)/86400000);
+  const lngHour=lng/15;
+  const tzOffsetHour=-date.getTimezoneOffset()/60; // 현지가 UTC보다 앞선 시간(KST=+9)
+  function calc(isSunrise){
+    const t=N+((isSunrise?6:18)-lngHour)/24;
+    const M=0.9856*t-3.289;
+    let L=M+1.916*Math.sin(rad*M)+0.020*Math.sin(rad*2*M)+282.634; L=(L%360+360)%360;
+    let RA=deg*Math.atan(0.91764*Math.tan(rad*L)); RA=(RA%360+360)%360;
+    RA+=Math.floor(L/90)*90-Math.floor(RA/90)*90; RA/=15;
+    const sinDec=0.39782*Math.sin(rad*L), cosDec=Math.cos(Math.asin(sinDec));
+    const cosH=(Math.cos(rad*zenith)-sinDec*Math.sin(rad*lat))/(cosDec*Math.cos(rad*lat));
+    if(cosH>1||cosH<-1) return null; // 백야/극야
+    let H=isSunrise?360-deg*Math.acos(cosH):deg*Math.acos(cosH); H/=15;
+    let UT=H+RA-0.06571*t-6.622-lngHour;   // UTC 시각(시), 0~24 벗어날 수 있음
+    let local=UT+tzOffsetHour;             // 현지 시각(시)
+    local=((local%24)+24)%24;              // 하루 중 시각으로 정규화
+    return Math.round(local*60);           // 자정 기준 분
+  }
+  return {sunrise:calc(true), sunset:calc(false)};
+}
+
+// GPS 위치 기준 일출/일몰 판정 → 3번 항목 갱신
+function evaluateSun(){
+  const loc = gps || autoLoc;
+  if(!loc) return;
+  const now=new Date();
+  const st=calcSunTimes(now, loc.lat, loc.lng);
+  const nowMin=now.getHours()*60+now.getMinutes();
+  const fmt=m=>(m==null)?'--:--':pad(Math.floor(m/60))+':'+pad(m%60);
+  const isDay = st.sunrise!=null && st.sunset!=null && nowMin>=st.sunrise && nowMin<=st.sunset;
+  sunInfo={sunrise:st.sunrise, sunset:st.sunset, isDaylight:isDay};
+
+  const item=document.getElementById('item'+SUN_IDX);
+  const desc=item.querySelector('.desc');
+  const [okBtn,badBtn]=item.querySelectorAll('.btns button');
+
+  if(isDay){
+    // 주간: 잠금 해제, 사용자가 직접 점검
+    okBtn.disabled=false; badBtn.disabled=false;
+    okBtn.style.opacity=''; badBtn.style.opacity='';
+    desc.innerHTML=`비행 시간이 일출 후 ~ 일몰 전 사이인가\n`+
+      `<b>오늘 일출 ${fmt(st.sunrise)} / 일몰 ${fmt(st.sunset)}</b>\n`+
+      `✅ 현재 주간 시간대 — 비행 가능 시간대입니다.`;
+  }else{
+    // 야간: 아니오/이상 고정 + 잠금
+    state[SUN_IDX]='bad';
+    okBtn.classList.remove('sel-ok');
+    badBtn.classList.add('sel-bad');
+    item.classList.remove('done-ok'); item.classList.add('done-bad');
+    okBtn.disabled=true; okBtn.style.opacity='.4';
+    badBtn.disabled=true; // 고정
+    desc.innerHTML=`비행 시간이 일출 후 ~ 일몰 전 사이인가\n`+
+      `<b>오늘 일출 ${fmt(st.sunrise)} / 일몰 ${fmt(st.sunset)}</b>\n`+
+      `🚫 현재 일출 전/일몰 후 — <b style="color:#d23b3b;">일출 전, 일몰 후에는 드론 비행을 하실 수 없으며 비행 적발시 행정처분으로 150만원의 벌금이 부과됩니다.\n일출 전, 일몰 후 드론 비행은 금해주시기 바랍니다.</b> (자동 '이상' 처리)`;
+    refresh();
+  }
+}
+
+const listEl = document.getElementById('list');
+items.forEach((it,i)=>{
+  const el = document.createElement('div');
+  el.className = 'item';
+  el.id = 'item'+i;
+  el.innerHTML = `
+    <div class="q">
+      <div class="num">${i+1}</div>
+      <div class="qtext">${it.q}</div>
+    </div>
+    ${it.d ? `<div class="desc">${it.d}</div>` : ''}
+    <div class="btns">
+      <button data-i="${i}" data-v="ok">예 / 정상</button>
+      <button data-i="${i}" data-v="bad">아니오 / 이상</button>
+    </div>`;
+  listEl.appendChild(el);
+});
+
+listEl.addEventListener('click', e=>{
+  const b = e.target.closest('button');
+  if(!b) return;
+  const i = +b.dataset.i, v = b.dataset.v;
+  state[i] = (state[i]===v) ? null : v;
+  const item = document.getElementById('item'+i);
+  const [okBtn,badBtn] = item.querySelectorAll('.btns button');
+  okBtn.classList.toggle('sel-ok', state[i]==='ok');
+  badBtn.classList.toggle('sel-bad', state[i]==='bad');
+  item.classList.toggle('done-ok', state[i]==='ok');
+  item.classList.toggle('done-bad', state[i]==='bad');
+  refresh();
+});
+
+function refresh(){
+  const done = state.filter(s=>s!==null).length;
+  const pct = Math.round(done/items.length*100);
+  document.getElementById('progFill').style.width = pct+'%';
+  document.getElementById('progText').textContent = `${done} / ${items.length} 항목 점검`;
+  const left = items.length - done;
+  const agreed = document.getElementById('privacyConsent').checked;
+  const fs = document.getElementById('footerSummary');
+  if(left>0)        fs.textContent = `미점검 항목 ${left}개`;
+  else if(!agreed)  fs.textContent = `⚠️ 개인정보 수집·이용 동의가 필요합니다`;
+  else              fs.textContent = `✅ 전 항목 점검 완료`;
+  document.getElementById('submitBtn').disabled = (left>0 || !agreed);
+}
+
+// 개인정보 동의 → 발송 버튼 활성화 갱신
+document.getElementById('privacyConsent').addEventListener('change', refresh);
+
+// GPS consent
+const consent = document.getElementById('gpsConsent');
+const gpsBtn = document.getElementById('gpsBtn');
+const gpsStatus = document.getElementById('gpsStatus');
+const gpsMap = document.getElementById('gpsMap');
+
+consent.addEventListener('change', ()=>{
+  gpsBtn.disabled = !consent.checked;
+  if(!consent.checked){
+    gps = null;
+    gpsStatus.className='gps-status';
+    gpsStatus.textContent='동의 후 [현재 위치 가져오기]를 눌러주세요.';
+    gpsMap.style.display='none';
+    gpsMap.innerHTML='';
+    if(autoLoc){
+      // 자동 수집 위치로 3번 일출/일몰 판정 유지
+      evaluateSun();
+    }else{
+      sunInfo = null;
+      const item=document.getElementById('item'+SUN_IDX);
+      const [okBtn,badBtn]=item.querySelectorAll('.btns button');
+      okBtn.disabled=false; badBtn.disabled=false;
+      okBtn.style.opacity=''; badBtn.style.opacity='';
+      state[SUN_IDX]=null;
+      okBtn.classList.remove('sel-ok'); badBtn.classList.remove('sel-bad');
+      item.classList.remove('done-ok','done-bad');
+      item.querySelector('.desc').textContent='비행 시간이 일출 후 ~ 일몰 전 사이인가';
+      refresh();
+    }
+  }
+});
+
+gpsBtn.addEventListener('click', ()=>{
+  if(!consent.checked) return;
+  if(!navigator.geolocation){
+    gpsStatus.className='gps-status err';
+    gpsStatus.textContent='이 기기는 위치 정보를 지원하지 않습니다.';
+    return;
+  }
+  gpsStatus.className='gps-status';
+  gpsStatus.textContent='📡 위치 확인 중...';
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      gps = {lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy};
+      gpsStatus.className='gps-status ok';
+      gpsStatus.innerHTML = `✅ 위치 확인 완료<br>위도 ${gps.lat.toFixed(6)}, 경도 ${gps.lng.toFixed(6)} (오차 ±${Math.round(gps.acc)}m)`;
+      gpsMap.style.display='block';
+      gpsMap.innerHTML = `<iframe class="map-frame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${gps.lat},${gps.lng}&z=17&output=embed"></iframe>`
+        + `<a class="map-link" href="https://maps.google.com/?q=${gps.lat},${gps.lng}" target="_blank" rel="noopener">🗺️ 구글맵 앱/사이트에서 크게 보기</a>`;
+      evaluateSun(); // 위치 기준 일출/일몰 판정 (3번 항목)
+    },
+    err=>{
+      gpsStatus.className='gps-status err';
+      gpsStatus.textContent='❌ 위치 가져오기 실패: '+err.message;
+    },
+    {enableHighAccuracy:true, timeout:10000, maximumAge:0}
+  );
+});
+
+// Submit -> POST 저장
+document.getElementById('submitBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('submitBtn');
+  const drone = val('m_drone');
+
+  const now = new Date();
+  const ts = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+' '+pad(now.getHours())+':'+pad(now.getMinutes());
+
+  const payload = {
+    drone: drone,
+    ts: ts,
+    gps: gps ? {lat:gps.lat, lng:gps.lng, acc:gps.acc} : null,
+    sunInfo: sunInfo ? {sunrise:sunInfo.sunrise, sunset:sunInfo.sunset, isDaylight:sunInfo.isDaylight} : null,
+    items: items.map((it,i)=>({q: it.q, state: state[i]}))
+  };
+
+  btn.disabled = true;
+  btn.textContent = '⏳ 저장 중...';
+  try{
+    const res = await fetch('/api/reports', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
+    btn.textContent = '✅ 저장 완료 (#'+data.id+' · '+data.verdict+')';
+  }catch(err){
+    btn.textContent = '❌ 저장 실패 - 다시 시도';
+    btn.disabled = false;
+    alert('저장 중 오류가 발생했습니다: '+err.message);
+  }
+});
+
+function val(id){return document.getElementById(id).value.trim();}
+function pad(n){return n<10?'0'+n:''+n;}
+
+refresh();
+
+// 화면 열 때 위치 자동 요청 → 3번 일출/일몰 즉시 판정 (메일 GPS와 별개)
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(
+    p=>{ autoLoc={lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy}; evaluateSun(); },
+    ()=>{ /* 거부/실패 시 무시 — 사용자가 직접 점검 */ },
+    {enableHighAccuracy:false, timeout:10000, maximumAge:600000}
+  );
+}
+</script>
+</body>
+</html>
