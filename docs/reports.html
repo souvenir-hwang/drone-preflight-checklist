@@ -47,6 +47,9 @@
     background:var(--blue);color:#fff;font-size:14px;font-weight:700;}
   .item-line{padding:5px 0;font-size:13px;border-bottom:1px solid #f0f1f5;}
   .item-line b.ok{color:var(--ok);} .item-line b.bad{color:var(--bad);} .item-line b.none{color:var(--muted);}
+  .map-frame{width:100%;height:220px;border:1px solid var(--line);border-radius:10px;display:block;margin-top:10px;}
+  .map-link{display:inline-block;margin-top:8px;color:var(--blue);font-weight:700;text-decoration:none;
+    border:1px solid var(--blue);border-radius:6px;padding:2px 8px;font-size:12.5px;}
   @media (max-width:640px){
     table,thead,tbody,th,td,tr{display:block;}
     thead{display:none;}
@@ -187,6 +190,9 @@ async function openDetail(id){
     <div class="row"><span>드론</span><span>${r.drone}</span></div>
     <div class="row"><span>종합 판정</span><span>${r.verdict} (정상 ${r.ok_count} / 이상 ${r.bad_count})</span></div>
     <div class="row"><span>GPS</span><span>${r.lat!=null?r.lat.toFixed(6)+', '+r.lng.toFixed(6)+' (±'+Math.round(r.gps_accuracy||0)+'m)':'-'}</span></div>
+    ${r.lat!=null && r.lng!=null ? `
+    <iframe class="map-frame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=${r.lat},${r.lng}&z=17&output=embed"></iframe>
+    <a class="map-link" href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank" rel="noopener">🗺️ 구글맵 앱/사이트에서 크게 보기</a>` : ''}
     <div style="margin-top:14px;">${itemsHtml}</div>
     <button class="modal-close" onclick="closeDetail()">닫기</button>`;
   document.getElementById('modalBg').classList.add('show');
