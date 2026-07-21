@@ -176,6 +176,9 @@
 </div>
 
 <script>
+const SUPABASE_URL = 'https://qsqrobfkipbgmmgedcnu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcXJvYmZraXBiZ21tZ2VkY251Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE1OTMsImV4cCI6MjEwMDIwNzU5M30.oeTPzxFDMz7k5DZdztkGy6IqwKskE7nMcEEMgyABZw0';
+
 const items = [
   {q:"삼성중공업 웨더아이 기준 아래 기상 조건을 만족하는가?", d:"평균 풍속 10m/s 이하, Gust 未발생"},
   {q:"가시거리가 확보 되었는가?", d:"비행 영역에 안개가 끼지 않은 맑은 날씨인가"},
@@ -383,7 +386,7 @@ gpsBtn.addEventListener('click', ()=>{
   );
 });
 
-// Submit -> POST 저장
+// Submit -> Supabase REST 직접 저장
 document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const btn = document.getElementById('submitBtn');
   const drone = val('m_drone');
@@ -391,25 +394,42 @@ document.getElementById('submitBtn').addEventListener('click', async ()=>{
   const now = new Date();
   const ts = now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+' '+pad(now.getHours())+':'+pad(now.getMinutes());
 
-  const payload = {
+  const okCnt = state.filter(s=>s==='ok').length;
+  const badCnt = state.filter(s=>s==='bad').length;
+  const verdict = badCnt===0 ? '비행가능' : '비행보류';
+
+  const row = {
+    client_ts: ts,
     drone: drone,
-    ts: ts,
-    gps: gps ? {lat:gps.lat, lng:gps.lng, acc:gps.acc} : null,
-    sunInfo: sunInfo ? {sunrise:sunInfo.sunrise, sunset:sunInfo.sunset, isDaylight:sunInfo.isDaylight} : null,
+    lat: gps ? gps.lat : null,
+    lng: gps ? gps.lng : null,
+    gps_accuracy: gps ? gps.acc : null,
+    sunrise_min: sunInfo ? sunInfo.sunrise : null,
+    sunset_min: sunInfo ? sunInfo.sunset : null,
+    is_daylight: sunInfo ? !!sunInfo.isDaylight : null,
+    ok_count: okCnt,
+    bad_count: badCnt,
+    verdict: verdict,
     items: items.map((it,i)=>({q: it.q, state: state[i]}))
   };
 
   btn.disabled = true;
   btn.textContent = '⏳ 저장 중...';
   try{
-    const res = await fetch('/api/reports', {
+    const res = await fetch(SUPABASE_URL+'/rest/v1/reports', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
+      headers:{
+        'Content-Type':'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer '+SUPABASE_ANON_KEY,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(row)
     });
+    if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
     const data = await res.json();
-    if(!res.ok || !data.ok) throw new Error(data.error || ('HTTP '+res.status));
-    btn.textContent = '✅ 저장 완료 (#'+data.id+' · '+data.verdict+')';
+    const saved = Array.isArray(data) ? data[0] : data;
+    btn.textContent = '✅ 저장 완료 (#'+saved.id+' · '+verdict+')';
   }catch(err){
     btn.textContent = '❌ 저장 실패 - 다시 시도';
     btn.disabled = false;

@@ -1,13 +1,3 @@
-# 점검 결과 저장 DB (운영 데이터 - 저장소에 커밋하지 않음)
-reports.db
-reports.db-journal
-
-# Python
-__pycache__/
-*.pyc
-venv/
-.venv/
-
 # 임시 xlsx 파싱 산출물
 _xlsx_tmp/
 
@@ -26,6 +16,3 @@ _xlsx_tmp/
 
 # 로컬 전용 도구 설정 (개발자 PC 경로·사용자명 포함, 머신마다 다름)
 .claude/settings.local.json
-
-# 구버전 백업 (더 이상 유효한 복원 지점 아님)
-templates/index.html.bak-20260617

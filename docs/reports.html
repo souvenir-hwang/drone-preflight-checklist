@@ -70,17 +70,21 @@
 </div>
 
 <script>
+const SUPABASE_URL = 'https://qsqrobfkipbgmmgedcnu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcXJvYmZraXBiZ21tZ2VkY251Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE1OTMsImV4cCI6MjEwMDIwNzU5M30.oeTPzxFDMz7k5DZdztkGy6IqwKskE7nMcEEMgyABZw0';
+const SB_HEADERS = {'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer '+SUPABASE_ANON_KEY};
+
 async function load(){
-  const res = await fetch('/api/reports');
-  const data = await res.json();
+  const res = await fetch(SUPABASE_URL+'/rest/v1/reports?select=id,created_at,client_ts,drone,lat,lng,ok_count,bad_count,verdict&order=id.desc&limit=200', {headers: SB_HEADERS, cache: 'no-store'});
+  const reports = await res.json();
   const tbody = document.getElementById('tbody');
   document.getElementById('loading').style.display='none';
-  if(!data.ok || data.reports.length===0){
+  if(!res.ok || reports.length===0){
     document.getElementById('empty').style.display='block';
     return;
   }
   document.getElementById('tbl').style.display='table';
-  data.reports.forEach(r=>{
+  reports.forEach(r=>{
     const tr = document.createElement('tr');
     tr.className='clickable';
     tr.onclick=()=>openDetail(r.id);
@@ -89,7 +93,7 @@ async function load(){
       : '-';
     tr.innerHTML = `
       <td data-label="ID">#${r.id}</td>
-      <td data-label="저장 시각">${r.created_at.replace('T',' ').replace('Z','')}</td>
+      <td data-label="저장 시각">${r.created_at.replace('T',' ').split('.')[0]}</td>
       <td data-label="드론">${r.drone}</td>
       <td data-label="결과"><span class="badge ${r.bad_count===0?'ok':'bad'}">${r.verdict}</span></td>
       <td data-label="정상/이상">${r.ok_count} / ${r.bad_count}</td>
@@ -99,10 +103,10 @@ async function load(){
 }
 
 async function openDetail(id){
-  const res = await fetch('/api/reports/'+id);
-  const data = await res.json();
-  if(!data.ok) return;
-  const r = data.report;
+  const res = await fetch(SUPABASE_URL+'/rest/v1/reports?id=eq.'+id+'&select=*', {headers: SB_HEADERS, cache: 'no-store'});
+  const rows = await res.json();
+  if(!res.ok || rows.length===0) return;
+  const r = rows[0];
   const modal = document.getElementById('modal');
   let itemsHtml = r.items.map((it,i)=>{
     const cls = it.state==='ok'?'ok':it.state==='bad'?'bad':'none';
@@ -111,7 +115,7 @@ async function openDetail(id){
   }).join('');
   modal.innerHTML = `
     <h2>#${r.id} 점검 기록 상세</h2>
-    <div class="row"><span>저장 시각(서버)</span><span>${r.created_at}</span></div>
+    <div class="row"><span>저장 시각(서버)</span><span>${r.created_at.replace('T',' ').split('.')[0]}</span></div>
     <div class="row"><span>점검 시각(클라이언트)</span><span>${r.client_ts||'-'}</span></div>
     <div class="row"><span>드론</span><span>${r.drone}</span></div>
     <div class="row"><span>종합 판정</span><span>${r.verdict} (정상 ${r.ok_count} / 이상 ${r.bad_count})</span></div>
