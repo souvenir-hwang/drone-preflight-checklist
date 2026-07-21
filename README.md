@@ -3,6 +3,9 @@
 서버 없이 정적 페이지 + Supabase만으로 동작하는 드론 비행 전 안전 점검 모바일 웹앱.
 GitHub Pages로 호스팅한다.
 
+- **점검 화면**: https://souvenir-hwang.github.io/drone-preflight-checklist/
+- **기록 조회**: https://souvenir-hwang.github.io/drone-preflight-checklist/reports.html
+
 ## 구성
 
 ```
