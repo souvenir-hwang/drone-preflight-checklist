@@ -30,6 +30,13 @@
   .empty,.loading{padding:30px;text-align:center;color:var(--muted);}
   .gps-link{color:var(--blue);text-decoration:none;font-size:12.5px;}
 
+  .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .toolbar label{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);}
+  .toolbar button{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-danger{background:#fdeaea;color:var(--bad);}
+  .btn-download{background:#eef1fa;color:var(--blue);}
+  th.chk-col,td.chk-col{width:34px;padding:10px 8px;}
+
   .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:50;}
   .modal-bg.show{display:flex;align-items:flex-end;justify-content:center;}
   .modal{background:#fff;border-radius:14px 14px 0 0;max-width:680px;width:100%;
@@ -55,9 +62,14 @@
   <div class="sub">최근 200건 · 조종자 식별정보 없음(드론·시각·GPS만 저장)</div>
 </header>
 <div class="wrap">
+  <div class="toolbar" id="toolbar" style="display:none;">
+    <label><input type="checkbox" id="selectAll"> 전체선택</label>
+    <button id="deleteBtn" class="btn-danger">🗑️ 선택 삭제</button>
+    <button id="downloadBtn" class="btn-download">📥 엑셀 다운로드</button>
+  </div>
   <table id="tbl" style="display:none;">
     <thead>
-      <tr><th>ID</th><th>저장 시각(서버)</th><th>드론</th><th>결과</th><th>정상/이상</th><th>GPS</th></tr>
+      <tr><th class="chk-col"></th><th>ID</th><th>저장 시각(서버)</th><th>드론</th><th>결과</th><th>정상/이상</th><th>GPS</th></tr>
     </thead>
     <tbody id="tbody"></tbody>
   </table>
@@ -69,21 +81,34 @@
   <div class="modal" id="modal"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const SUPABASE_URL = 'https://qsqrobfkipbgmmgedcnu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzcXJvYmZraXBiZ21tZ2VkY251Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MzE1OTMsImV4cCI6MjEwMDIwNzU5M30.oeTPzxFDMz7k5DZdztkGy6IqwKskE7nMcEEMgyABZw0';
 const SB_HEADERS = {'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer '+SUPABASE_ANON_KEY};
 
+let currentReports = [];
+const PIN = 'SHIDroneCheck';
+
 async function load(){
+  document.getElementById('loading').style.display='block';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('tbl').style.display='none';
+  document.getElementById('toolbar').style.display='none';
+  document.getElementById('selectAll').checked = false;
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML='';
+
   const res = await fetch(SUPABASE_URL+'/rest/v1/reports?select=id,created_at,client_ts,drone,lat,lng,ok_count,bad_count,verdict&order=id.desc&limit=200', {headers: SB_HEADERS, cache: 'no-store'});
   const reports = await res.json();
-  const tbody = document.getElementById('tbody');
+  currentReports = reports;
   document.getElementById('loading').style.display='none';
   if(!res.ok || reports.length===0){
     document.getElementById('empty').style.display='block';
     return;
   }
   document.getElementById('tbl').style.display='table';
+  document.getElementById('toolbar').style.display='flex';
   reports.forEach(r=>{
     const tr = document.createElement('tr');
     tr.className='clickable';
@@ -92,6 +117,7 @@ async function load(){
       ? `<a class="gps-link" href="https://maps.google.com/?q=${r.lat},${r.lng}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</a>`
       : '-';
     tr.innerHTML = `
+      <td data-label="선택" class="chk-col"><input type="checkbox" class="row-chk" data-id="${r.id}" onclick="event.stopPropagation()"></td>
       <td data-label="ID">#${r.id}</td>
       <td data-label="저장 시각">${r.created_at.replace('T',' ').split('.')[0]}</td>
       <td data-label="드론">${r.drone}</td>
@@ -101,6 +127,47 @@ async function load(){
     tbody.appendChild(tr);
   });
 }
+
+document.getElementById('selectAll').addEventListener('change', e=>{
+  document.querySelectorAll('.row-chk').forEach(cb=>cb.checked=e.target.checked);
+});
+
+document.getElementById('deleteBtn').addEventListener('click', async ()=>{
+  const ids = Array.from(document.querySelectorAll('.row-chk:checked')).map(cb=>cb.dataset.id);
+  if(ids.length===0){ alert('삭제할 항목을 선택해주세요.'); return; }
+  const pin = prompt('삭제하려면 PIN을 입력하세요.');
+  if(pin===null) return;
+  if(pin!==PIN){ alert('PIN이 일치하지 않습니다.'); return; }
+  if(!confirm(ids.length+'건을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?')) return;
+
+  const res = await fetch(SUPABASE_URL+'/rest/v1/reports?id=in.('+ids.join(',')+')', {
+    method:'DELETE',
+    headers: SB_HEADERS
+  });
+  if(!res.ok){ alert('삭제 중 오류가 발생했습니다: HTTP '+res.status); return; }
+  alert(ids.length+'건이 삭제되었습니다.');
+  load();
+});
+
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  if(currentReports.length===0){ alert('다운로드할 기록이 없습니다.'); return; }
+  const header = ['ID','저장 시각(서버)','드론','결과','정상/이상','GPS'];
+  const rows = currentReports.map(r=>[
+    '#'+r.id,
+    r.created_at.replace('T',' ').split('.')[0],
+    r.drone,
+    r.verdict,
+    r.ok_count+' / '+r.bad_count,
+    (r.lat!=null && r.lng!=null) ? r.lat.toFixed(5)+', '+r.lng.toFixed(5) : '-'
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '점검기록');
+  const now = new Date();
+  const p2 = n=>n<10?'0'+n:''+n;
+  const fname = `드론점검기록_${now.getFullYear()}${p2(now.getMonth()+1)}${p2(now.getDate())}.xlsx`;
+  XLSX.writeFile(wb, fname);
+});
 
 async function openDetail(id){
   const res = await fetch(SUPABASE_URL+'/rest/v1/reports?id=eq.'+id+'&select=*', {headers: SB_HEADERS, cache: 'no-store'});
