@@ -32,6 +32,7 @@
   tr:last-child td{border-bottom:none;}
   .btn{border:none;border-radius:6px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;}
   .btn-save{background:#eef1fa;color:var(--blue);}
+  .btn-qr{background:#eafaf0;color:var(--ok);}
   .btn-del{background:#fdeaea;color:var(--bad);}
   .btn-add{background:var(--blue);color:#fff;padding:9px 16px;}
   .empty,.loading{padding:24px;text-align:center;color:var(--muted);}
@@ -62,6 +63,7 @@
 </div>
 
 <script src="admin-common.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script>
 async function load(){
   document.getElementById('loading').style.display='block';
@@ -86,9 +88,11 @@ async function load(){
       <td><input type="checkbox" ${r.active?'checked':''} data-f="active"></td>
       <td style="white-space:nowrap;">
         <button class="btn btn-save">저장</button>
+        <button class="btn btn-qr">QR</button>
         <button class="btn btn-del">삭제</button>
       </td>`;
     tr.querySelector('.btn-save').addEventListener('click', ()=>save(r.id, tr));
+    tr.querySelector('.btn-qr').addEventListener('click', ()=>downloadQR(r.code));
     tr.querySelector('.btn-del').addEventListener('click', ()=>remove(r.id, r.code));
     tbody.appendChild(tr);
   });
@@ -105,6 +109,19 @@ async function save(id, tr){
   });
   if(!res.ok){ alert('저장 실패: '+(await res.text())); return; }
   load();
+}
+
+function downloadQR(code){
+  const url = location.href.split('?')[0].replace('admin-drones.html', 'index.html') + '?drone=' + encodeURIComponent(code);
+  QRCode.toDataURL(url, {width:400, margin:2}, (err, dataUrl)=>{
+    if(err){ alert('QR 생성 실패: '+err.message); return; }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = code + '_QR.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
 }
 
 async function remove(id, code){

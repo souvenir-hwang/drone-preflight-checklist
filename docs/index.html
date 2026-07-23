@@ -308,6 +308,19 @@ async function init(){
     const o=document.createElement('option'); o.value=d; o.textContent=d; droneSel.appendChild(o);
   });
 
+  // QR 코드로 접속한 경우 (?drone=DR000005) 해당 드론으로 고정
+  const qrDrone = new URLSearchParams(location.search).get('drone');
+  const droneLabel = droneSel.closest('.field').querySelector('label');
+  if(qrDrone){
+    if(drones.includes(qrDrone)){
+      droneSel.value = qrDrone;
+      droneSel.disabled = true;
+      droneLabel.innerHTML = `QR 코드로 <b>${qrDrone}</b> 드론에 고정되었습니다.`;
+    }else{
+      droneLabel.innerHTML = `⚠️ QR 코드의 드론 코드(${qrDrone})를 찾을 수 없습니다. 직접 선택해주세요.`;
+    }
+  }
+
   const listEl = document.getElementById('list');
   listEl.innerHTML = '';
   items.forEach((it,i)=>{
