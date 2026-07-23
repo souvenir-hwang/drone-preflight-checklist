@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>드론 목록 관리</title>
+<style>
+  :root{
+    --blue:#1428A0; --ok:#1e9e5a; --bad:#d23b3b;
+    --bg:#f2f4f8; --card:#ffffff; --line:#e2e6ee; --txt:#1c2333; --muted:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    margin:0;background:var(--bg);color:var(--txt);font-size:14px;
+  }
+  header{background:var(--blue);color:#fff;padding:14px 18px;}
+  header h1{margin:0;font-size:17px;}
+  header .sub{font-size:12px;opacity:.85;margin-top:3px;}
+  .back-link{color:#fff;font-size:12px;opacity:.85;text-decoration:none;display:inline-block;margin-bottom:6px;}
+  .wrap{max-width:720px;margin:0 auto;padding:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .add-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .add-form input[type=text]{flex:1;min-width:140px;}
+  .add-form input[type=number]{width:70px;}
+  input[type=text],input[type=number]{padding:8px;border:1px solid var(--line);border-radius:6px;font-size:13px;}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);}
+  th{background:#f7f8fb;color:var(--muted);font-weight:600;font-size:12px;}
+  tr:last-child td{border-bottom:none;}
+  .btn{border:none;border-radius:6px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;}
+  .btn-save{background:#eef1fa;color:var(--blue);}
+  .btn-del{background:#fdeaea;color:var(--bad);}
+  .btn-add{background:var(--blue);color:#fff;padding:9px 16px;}
+  .empty,.loading{padding:24px;text-align:center;color:var(--muted);}
+  .err{color:var(--bad);font-size:12.5px;margin-top:8px;}
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="admin.html">← 관리 화면으로</a>
+  <h1>🚁 드론 목록 관리</h1>
+  <div class="sub">점검 화면 드론 선택 드롭다운에 나올 목록</div>
+</header>
+<div class="wrap" id="wrap" style="display:none;">
+  <div class="card">
+    <div class="add-form">
+      <input type="text" id="newCode" placeholder="드론 코드 (예: DR000021)">
+      <input type="number" id="newSeq" placeholder="순서" value="0">
+      <button class="btn btn-add" id="addBtn">+ 추가</button>
+    </div>
+    <div class="err" id="addErr"></div>
+  </div>
+  <table id="tbl" style="display:none;">
+    <thead><tr><th>코드</th><th>순서</th><th>사용</th><th></th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="loading" class="loading">불러오는 중...</div>
+  <div id="empty" class="empty" style="display:none;">등록된 드론이 없습니다.</div>
+</div>
+
+<script src="admin-common.js"></script>
+<script>
+async function load(){
+  document.getElementById('loading').style.display='block';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('tbl').style.display='none';
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML='';
+
+  const res = await fetch(SUPABASE_URL+'/rest/v1/drones?select=*&order=seq.asc', {headers: SB_HEADERS, cache:'no-store'});
+  const rows = await res.json();
+  document.getElementById('loading').style.display='none';
+  if(!res.ok || rows.length===0){
+    document.getElementById('empty').style.display='block';
+    return;
+  }
+  document.getElementById('tbl').style.display='table';
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${r.code}" data-f="code"></td>
+      <td><input type="number" value="${r.seq}" data-f="seq" style="width:60px;"></td>
+      <td><input type="checkbox" ${r.active?'checked':''} data-f="active"></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-save">저장</button>
+        <button class="btn btn-del">삭제</button>
+      </td>`;
+    tr.querySelector('.btn-save').addEventListener('click', ()=>save(r.id, tr));
+    tr.querySelector('.btn-del').addEventListener('click', ()=>remove(r.id, r.code));
+    tbody.appendChild(tr);
+  });
+}
+
+async function save(id, tr){
+  const code = tr.querySelector('[data-f=code]').value.trim();
+  const seq = parseInt(tr.querySelector('[data-f=seq]').value, 10) || 0;
+  const active = tr.querySelector('[data-f=active]').checked;
+  const res = await fetch(SUPABASE_URL+'/rest/v1/drones?id=eq.'+id, {
+    method:'PATCH',
+    headers:{...SB_HEADERS, 'Content-Type':'application/json', 'Prefer':'return=minimal'},
+    body: JSON.stringify({code, seq, active})
+  });
+  if(!res.ok){ alert('저장 실패: '+(await res.text())); return; }
+  load();
+}
+
+async function remove(id, code){
+  if(!confirm(`"${code}" 드론을 삭제할까요?`)) return;
+  const res = await fetch(SUPABASE_URL+'/rest/v1/drones?id=eq.'+id, { method:'DELETE', headers: SB_HEADERS });
+  if(!res.ok){ alert('삭제 실패: '+(await res.text())); return; }
+  load();
+}
+
+document.getElementById('addBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('addErr');
+  errEl.textContent='';
+  const code = document.getElementById('newCode').value.trim();
+  const seq = parseInt(document.getElementById('newSeq').value, 10) || 0;
+  if(!code){ errEl.textContent='드론 코드를 입력해주세요.'; return; }
+  const res = await fetch(SUPABASE_URL+'/rest/v1/drones', {
+    method:'POST',
+    headers:{...SB_HEADERS, 'Content-Type':'application/json', 'Prefer':'return=minimal'},
+    body: JSON.stringify({code, seq, active:true})
+  });
+  if(!res.ok){ errEl.textContent = '추가 실패: '+(await res.text()); return; }
+  document.getElementById('newCode').value='';
+  document.getElementById('newSeq').value='0';
+  load();
+});
+
+adminGate(()=>{ document.getElementById('wrap').style.display='block'; load(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>체크리스트 항목 관리</title>
+<style>
+  :root{
+    --blue:#1428A0; --ok:#1e9e5a; --bad:#d23b3b;
+    --bg:#f2f4f8; --card:#ffffff; --line:#e2e6ee; --txt:#1c2333; --muted:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    margin:0;background:var(--bg);color:var(--txt);font-size:14px;
+  }
+  header{background:var(--blue);color:#fff;padding:14px 18px;}
+  header h1{margin:0;font-size:17px;}
+  header .sub{font-size:12px;opacity:.85;margin-top:3px;}
+  .back-link{color:#fff;font-size:12px;opacity:.85;text-decoration:none;display:inline-block;margin-bottom:6px;}
+  .wrap{max-width:1000px;margin:0 auto;padding:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .card h2{margin:0 0 10px;font-size:14px;color:var(--blue);}
+  .add-grid{display:grid;grid-template-columns:1fr 1fr 70px;gap:8px;margin-bottom:8px;}
+  .add-grid textarea{grid-column:1/-1;}
+  input,textarea{padding:8px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit;width:100%;}
+  textarea{resize:vertical;min-height:44px;}
+  .scroll-x{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;background:var(--card);border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);min-width:900px;}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{background:#f7f8fb;color:var(--muted);font-weight:600;font-size:12px;white-space:nowrap;}
+  tr:last-child td{border-bottom:none;}
+  .btn{border:none;border-radius:6px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .btn-save{background:#eef1fa;color:var(--blue);}
+  .btn-del{background:#fdeaea;color:var(--bad);}
+  .btn-add{background:var(--blue);color:#fff;padding:9px 16px;}
+  .key-badge{display:inline-block;background:#f0f1f5;color:var(--muted);border-radius:5px;padding:3px 6px;font-size:11px;font-family:monospace;}
+  .empty,.loading{padding:24px;text-align:center;color:var(--muted);}
+  .err{color:var(--bad);font-size:12.5px;margin-top:4px;}
+  .col-seq{width:56px;} .col-active{width:50px;} .col-actions{width:110px;}
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="admin.html">← 관리 화면으로</a>
+  <h1>📋 체크리스트 항목 관리</h1>
+  <div class="sub">점검 화면에 표시되는 질문·설명·순서</div>
+</header>
+<div class="wrap" id="wrap" style="display:none;">
+  <div class="card">
+    <h2>+ 새 항목 추가</h2>
+    <div class="add-grid">
+      <input type="text" id="newKey" placeholder="key (영문 고유값, 예: cargo_check)">
+      <input type="text" id="newQuestion" placeholder="질문">
+      <input type="number" id="newSeq" placeholder="순서" value="0">
+      <textarea id="newDescription" placeholder="설명 (선택, 줄바꿈 가능)"></textarea>
+      <input type="text" id="newPhone" placeholder="전화번호 (선택 — 입력 시 연락처 링크 자동 추가, 예: 055-630-5816)">
+      <button class="btn btn-add" id="addBtn">+ 추가</button>
+    </div>
+    <div class="err" id="addErr"></div>
+  </div>
+  <div class="scroll-x">
+    <table id="tbl" style="display:none;">
+      <thead><tr>
+        <th class="col-seq">순서</th><th>key</th><th>질문</th><th>설명</th><th>전화번호</th>
+        <th class="col-active">사용</th><th class="col-actions"></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div id="loading" class="loading">불러오는 중...</div>
+  <div id="empty" class="empty" style="display:none;">등록된 항목이 없습니다.</div>
+</div>
+
+<script src="admin-common.js"></script>
+<script>
+async function load(){
+  document.getElementById('loading').style.display='block';
+  document.getElementById('empty').style.display='none';
+  document.getElementById('tbl').style.display='none';
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML='';
+
+  const res = await fetch(SUPABASE_URL+'/rest/v1/checklist_items?select=*&order=seq.asc', {headers: SB_HEADERS, cache:'no-store'});
+  const rows = await res.json();
+  document.getElementById('loading').style.display='none';
+  if(!res.ok || rows.length===0){
+    document.getElementById('empty').style.display='block';
+    return;
+  }
+  document.getElementById('tbl').style.display='table';
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="number" value="${r.seq}" data-f="seq"></td>
+      <td><span class="key-badge">${r.key}</span></td>
+      <td><input type="text" value="${escapeAttr(r.question)}" data-f="question"></td>
+      <td><textarea data-f="description">${escapeHtml(r.description||'')}</textarea></td>
+      <td><input type="text" value="${escapeAttr(r.phone||'')}" data-f="phone" placeholder="-"></td>
+      <td><input type="checkbox" ${r.active?'checked':''} data-f="active"></td>
+      <td>
+        <button class="btn btn-save">저장</button>
+        <button class="btn btn-del">삭제</button>
+      </td>`;
+    tr.querySelector('.btn-save').addEventListener('click', ()=>save(r.id, tr));
+    tr.querySelector('.btn-del').addEventListener('click', ()=>remove(r.id, r.question));
+    tbody.appendChild(tr);
+  });
+}
+
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
+async function save(id, tr){
+  const seq = parseInt(tr.querySelector('[data-f=seq]').value, 10) || 0;
+  const question = tr.querySelector('[data-f=question]').value.trim();
+  const description = tr.querySelector('[data-f=description]').value;
+  const phone = tr.querySelector('[data-f=phone]').value.trim();
+  const active = tr.querySelector('[data-f=active]').checked;
+  const res = await fetch(SUPABASE_URL+'/rest/v1/checklist_items?id=eq.'+id, {
+    method:'PATCH',
+    headers:{...SB_HEADERS, 'Content-Type':'application/json', 'Prefer':'return=minimal'},
+    body: JSON.stringify({seq, question, description, phone: phone||null, active})
+  });
+  if(!res.ok){ alert('저장 실패: '+(await res.text())); return; }
+  load();
+}
+
+async function remove(id, question){
+  if(!confirm(`"${question}" 항목을 삭제할까요?`)) return;
+  const res = await fetch(SUPABASE_URL+'/rest/v1/checklist_items?id=eq.'+id, { method:'DELETE', headers: SB_HEADERS });
+  if(!res.ok){ alert('삭제 실패: '+(await res.text())); return; }
+  load();
+}
+
+document.getElementById('addBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('addErr');
+  errEl.textContent='';
+  const key = document.getElementById('newKey').value.trim();
+  const question = document.getElementById('newQuestion').value.trim();
+  const seq = parseInt(document.getElementById('newSeq').value, 10) || 0;
+  const description = document.getElementById('newDescription').value;
+  const phone = document.getElementById('newPhone').value.trim();
+  if(!key || !question){ errEl.textContent='key와 질문은 필수입니다.'; return; }
+  const res = await fetch(SUPABASE_URL+'/rest/v1/checklist_items', {
+    method:'POST',
+    headers:{...SB_HEADERS, 'Content-Type':'application/json', 'Prefer':'return=minimal'},
+    body: JSON.stringify({key, seq, question, description, phone: phone||null, active:true})
+  });
+  if(!res.ok){ errEl.textContent = '추가 실패: '+(await res.text()); return; }
+  document.getElementById('newKey').value='';
+  document.getElementById('newQuestion').value='';
+  document.getElementById('newSeq').value='0';
+  document.getElementById('newDescription').value='';
+  document.getElementById('newPhone').value='';
+  load();
+});
+
+adminGate(()=>{ document.getElementById('wrap').style.display='block'; load(); });
+</script>
+</body>
+</html>
